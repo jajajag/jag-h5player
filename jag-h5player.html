@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <!-- Load jquery from library. -->
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <!-- Use async to wait for the domComplete. -->
+    <script type="text/javascript" src="jag-h5player.js" async="async"></script>
+    <link rel="stylesheet" type="text/css" href="jag-h5player.css">
+</head>
+<body>
+<!-- Use video tab from HTML5m where id is myVideo, set the poster and size but not invoke the control. -->
+<video id="myVideo" poster="poster.jpg" width="480" height="360">
+    <!-- Locate the source video. -->
+    <source src="video.mp4" type="video/mp4">
+    <!-- If the browser does not support HTML5, use flash player instead. -->
+    <object id="flowplayer" width="704" height="400" data="flowplayer-3.2.16.swf" type="application/x-shockwave-flash">
+        <param name="movie" value="flowplayer-3.2.16.swf"/>
+        <param name="flashvars" value='config={"clip":"movie.mp4"}'/>
+    </object>
+    <!-- Give alert if the browser does not support flash. -->
+    <p>您的浏览器不支持此视频</p>
+</video>
+<div class="control">
+    <a href="#" class="btnPlay">Play/Pause</a>
+</div>
+<div class="progressTime">
+    Current play time: <span class="current"></span>
+    Video duration: <span class="duration"></span>
+</div>
+<div class="progressBar">
+    <div class="timeBar">xxx</div>
+</div>
+<div class="progressBar">
+    <div class="bufferBar"></div>
+</div>
+<a href="#" class="muted" >Mute/Unmute</a>
+<div class="volumeBar">
+    <div class="volume"></div>
+</div>
+<div class="control">
+    <a href="#" class="ff">Fast Forward</a>
+    <a href="#" class="rw">Rewind</a>
+    <a href="#" class="sl">Slow Motion</a>
+</div>
+
+</body>
+</html>
