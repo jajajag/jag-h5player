@@ -1,6 +1,34 @@
 /* Get the jQuery object from the dom tree. */
 var video = $('#myVideo');
 
+/* Listening to the keyboard event (keydown here). */
+$(document).keydown(function(event) {
+    switch (event.which) {
+        case 32:
+            /* Play/Pause if we tape space key. */
+            if (video[0].paused) {
+                video[0].play();
+            } else {
+                video[0].pause();
+            }
+            break;
+        case 37:
+            /* Rewind 10s if we tape right arrow key. */
+            if (video[0].currentTime >= 10) {
+                /* Time should be greater than 0*/
+                video[0].currentTime -= 10;
+            }
+            break;
+        case 39:
+            /* Forward 10s if we tape right arrow key. */
+            if (video[0].currentTime + 10 < video[0].duration) {
+                /* Current time should be smaller than the max duration. */
+                video[0].currentTime += 10;
+            }
+            break;
+    }
+});
+
 /* .play() and .pause() method. */
 $('.btnPlay').on('click', function() {
     if(video[0].paused) {
@@ -11,6 +39,8 @@ $('.btnPlay').on('click', function() {
     }
     return false;
 });
+
+
 
 /* Get duration from loadedmettadata. */
 video.on('loadedmetadata', function() {
@@ -106,5 +136,15 @@ $('.rw').on('click', function() {
 //Slow motion control
 $('.sl').on('click', function() {
     video[0].playbackrate = 0.5;
+    return false;
+});
+
+$('.fullscreen').on('click', function() {
+    //For Webkit
+    video[0].webkitEnterFullscreen();
+
+    //For Firefox
+    video[0].mozRequestFullScreen();
+
     return false;
 });
