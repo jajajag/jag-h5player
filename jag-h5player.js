@@ -2,7 +2,7 @@
 var video = $('#myVideo');
 
 /* Listening to the keyboard event (keydown here). */
-$(document).keydown(function(event) {
+$(document).on('keydown', function(event) {
     switch (event.which) {
         case 32:
             /* Play/Pause if we tape space key. */
@@ -29,6 +29,66 @@ $(document).keydown(function(event) {
     }
 });
 
+/* There should be an interval between two single click.
+*  We overlook the single click if two clicks are too close.
+*  singleClickFlag is a lock of clicks. */
+var singleClickFlag = true;
+/* Listening to mouse single click event. */
+video.on('click', function() {
+    if (singleClickFlag) {
+        /* Set the lock if it is the first click. */
+        singleClickFlag = false;
+        /* Timeout for 300ms. */
+        setTimeout(function() {
+            if (!singleClickFlag) {
+                /* Change the status of .*/
+                if (video[0].paused) {
+                    video[0].play();
+                } else {
+                    video[0].pause();
+                }
+            }
+            /* Open the clock if the function ends. */
+            singleClickFlag = true;
+        }, 300);
+    } else {
+        /* Open the clock if the click is close. */
+        singleClickFlag = true;
+    }
+});
+
+/* Listening to mouse double click event. */
+video.on('dblclick', function() {
+    /* Check if the video is alrealy in fullscreen mode. */
+    if (document.fullscreenElement || document.webkitFullscreenElement ||
+        document.mozFullScreenElement || document.msFullscreenElement) {
+        /* Exit fullscreen if corresponding element exists. */
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+            document.mozCancelFullScreen();
+        } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+        }
+    } else {
+        /* Request fullscreen if corresponding element exists. */
+        if (video[0].requestFullscreen) {
+            video[0].requestFullscreen();
+        } else if (video[0].webkitRequestFullscreen) {
+            video[0].webkitRequestFullscreen();
+        } else if (video[0].mozRequestFullScreen) {
+            video[0].mozRequestFullScreen();
+        } else if (video[0].msRequestFullscreen) {
+            video[0].msRequestFullscreen();
+        }
+    }
+});
+
+
+
+
 /* .play() and .pause() method. */
 $('.btnPlay').on('click', function() {
     if(video[0].paused) {
@@ -39,7 +99,6 @@ $('.btnPlay').on('click', function() {
     }
     return false;
 });
-
 
 
 /* Get duration from loadedmettadata. */
