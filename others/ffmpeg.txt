@@ -1,0 +1,5 @@
+# Transfer flv to mp4
+ffmpeg -i video.flv -y -vcodec copy -acodec copy video.mp4
+ffmpeg -ss 00:00:00 -t 00:00:30 -i test.mp4 -vcodec copy -acodec copy output.mp4
+# start time, end time = start time + time period
+ffmpeg -ss 00:01:51 -t -00:00:10 -i video.flv -vcodec copy -acodec copy video.mp4
