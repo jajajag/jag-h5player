@@ -1,20 +1,21 @@
 /* Get the jQuery object from the dom tree. */
 var video = $('#jag-video');
-var playButton = $('#play-button');
-var volumeButton = $('#volume-button');
-var progressBar = $('#jag-progress-bar');
-var bufferBar = $('#jag-buffer-bar');
+
+function playOrPause() {
+    /* 暂停时播放，否则暂停。 */
+    if (video[0].paused) {
+        video[0].play();
+    } else {
+        video[0].pause();
+    }
+}
 
 /* Listening to the keyboard event (keydown here). */
 $(document).on('keydown', function(event) {
     switch (event.which) {
         case 32:
             /* Play/Pause if we tape space key. */
-            if (video[0].paused) {
-                video[0].play();
-            } else {
-                video[0].pause();
-            }
+            playOrPause();
             break;
         case 37:
             /* Rewind 10s if we tape right arrow key. */
@@ -46,11 +47,7 @@ video.on('click', function() {
         setTimeout(function() {
             if (!singleClickFlag) {
                 /* Change the status of .*/
-                if (video[0].paused) {
-                    video[0].play();
-                } else {
-                    video[0].pause();
-                }
+                playOrPause();
             }
             /* Open the clock if the function ends. */
             singleClickFlag = true;
@@ -61,9 +58,7 @@ video.on('click', function() {
     }
 });
 
-/* Listening to mouse double click event.
-*  监听鼠标双击事件。 */
-video.on('dblclick', function() {
+function getFullscreen() {
     /* Check if the video is alrealy in fullscreen mode. */
     if (document.fullscreenElement || document.webkitFullscreenElement ||
         document.mozFullScreenElement || document.msFullscreenElement) {
@@ -89,7 +84,13 @@ video.on('dblclick', function() {
             video[0].msRequestFullscreen();
         }
     }
-});
+}
+
+/* Listening to mouse double click event.
+*  监听鼠标双击事件。 */
+video.on('dblclick', getFullscreen);
+
+var controlPanel = $('#control-panel');
 
 /* 动态生成控制栏。 */
 function rebuildControlPanel() {
@@ -99,14 +100,12 @@ function rebuildControlPanel() {
     /* 获取视频左偏移量。 */
     leftOffset = video.offsetParent()[0].offsetLeft;
     /* 控制栏高度为40px。 */
-    $('#control-panel').height(40).css({
+    controlPanel.height(40).css({
         /* 绝对定位确定控制栏位置。 */
         'position': 'absolute',
         'top': videoHeight,
         'left': leftOffset,
         'width': videoWidth,
-        //'background': 'black',
-        'display': 'block'
     });
 }
 /* 初始化控制栏。 */
@@ -132,6 +131,9 @@ $(document).on("msfullscreenchange", function () {
 /* 暂停时不管鼠标在哪里都不取消控制栏。开始时，移动到视频区域内显示，到外面立即取消，在里面不动5s取消。 */
 
 
+
+var progressBar = $('#jag-progress-bar');
+var bufferBar = $('#jag-buffer-bar');
 
 /* 根据当前时间更新进度条和缓冲条。 */
 video.on('timeupdate', function() {
@@ -169,19 +171,72 @@ function startBuffer() {
 /* 开始第一次更新缓冲条。 */
 setTimeout(startBuffer, 1000);
 
+var playButton = $('#play-button');
+var volumeButton = $('#volume-button');
+var fullscreenButton = $('#fullscreen-button');
+var playbackButton = $('#playback-button');
+var playbackList = $('.playback-list');
+
 /* 下面是控制条按钮事件。 */
 /* 点击播放按钮时，开始或暂停视频。 */
-playButton.on('click', function() {
-    if (video[0].paused) {
-        video[0].play();
-    } else {
-        video[0].pause();
-    }
-});
+playButton.on('click', playOrPause);
 
 volumeButton.on('click', function() {
     video[0].muted = !video[0].muted;
 });
+
+fullscreenButton.on('click', getFullscreen);
+
+playbackButton.on('click', function() {
+    /* 显示或者收回播放速率列表。 */
+    playbackList.toggle('fast');
+});
+
+/* 播放速率列表点击事件。 */
+$('.list-group-item').on('click', function() {
+    video[0].playbackRate = parseFloat($(this).text());
+    var list = $('.list-group-item');
+    /* 清空所有按钮类并重新赋值。 */
+    for (var i = 0; i < list.length; ++i) {
+        $(list[i]).removeClass();
+        $(list[i]).addClass('list-group-item');
+    }
+    /* 为当前按钮添加active属性。 */
+    $(this).addClass('active');
+    /* 延迟300ms关闭播放速率列表。 */
+    setTimeout(function() {playbackList.hide('fast');}, 300);
+});
+
+/* 用一个计时器记录未移动时间, flag记录鼠标是否在控制栏上。 */
+var controlPanelTimer = 0;
+var onControlPanelFlag = false;
+video.on('mousemove', function() {
+    /* 如果鼠标在屏幕上移动，则显示控制条并重设计时器。 */
+    controlPanel.show();
+    controlPanelTimer = 5000;
+});
+
+/* 若在控制栏上则为true，否则为false。 */
+controlPanel.on('mouseover', function() {
+    onControlPanelFlag = true;
+});
+
+controlPanel.on('mouseout', function() {
+    onControlPanelFlag = false;
+});
+
+/* 隐藏控制栏的函数。 */
+function controlPanelHide() {
+    /* 若计时器已归零并且鼠标不在控制栏上，则隐藏控制栏。 */
+    if (controlPanelTimer == 0 && !onControlPanelFlag) {
+        controlPanel.hide();
+    }
+    /* 计时器每隔500ms更新一次。 */
+    controlPanelTimer = (controlPanelTimer > 500) ? controlPanelTimer - 500 : 0;
+    setTimeout(controlPanelHide, 500);
+}
+/* 初始化计时器。 */
+controlPanelHide();
 
 /* 下面是视频播放事件。 */
 video.on('pause', function() {
@@ -207,27 +262,14 @@ video.on('volumechange', function() {
     }
 });
 
-
-
-
-
-/* Set context menu for right click. */
-/* 设置视频右键菜单。 */
-video.contextmenu({
-    target: '#context-menu',
-    before: function (e) {
-        // This function is optional.
-        // Here we use it to stop the event if the user clicks a span
-        e.preventDefault();
-        if (e.target.tagName == 'SPAN') {
-            e.preventDefault();
-            this.closemenu();
-            return false;
-        }
-        //this.getMenu().find("li").eq(2).find('a').html("This was dynamically changed");
-        return true;
-    }
+/* Forbid right click. */
+/* 设置禁用右键。 */
+video.contextmenu(function() {
+    return false;
 });
+
+
+
 
 
 
@@ -284,12 +326,4 @@ $('.volumeBar').on('mousedown', function(e) {
     var percentage = 100 * position / volume.width();
     $('.volumeBar').css('width', percentage+'%');
     video[0].volume = percentage / 100;
-});
-
-//Fast forward control
-$('.ff').on('click', function() {
-    video[0].pause();
-    video[0].playbackRate = 2;
-    video[0].play();
-    return false;
 });
