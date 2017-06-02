@@ -1,6 +1,8 @@
 /* Get the jQuery object from the dom tree. */
 var video = $('#jag-video');
 var fullscreenItem = $('#fullscreen-item');
+/* 判断设备是否为移动设备。 */
+var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
 function playOrPause() {
     /* 暂停时播放，否则暂停。 */
@@ -24,6 +26,8 @@ $(document).on('keydown', function(event) {
             if (video[0].currentTime >= 10) {
                 /* Time should be greater than 0*/
                 video[0].currentTime -= 10;
+            } else {
+                video[0].currentTime = 0;
             }
             break;
         case 39:
@@ -42,7 +46,11 @@ $(document).on('keydown', function(event) {
 *  singleClickFlag is a lock of clicks. */
 var singleClickFlag = true;
 /* Listening to mouse single click event. */
-video.on('click', function() {
+video.on('tap', function() {
+    /* 如果是移动设备则不执行。 */
+    if (isMobile) {
+        return;
+    }
     if (singleClickFlag) {
         /* Set the lock if it is the first click. */
         singleClickFlag = false;
@@ -90,9 +98,21 @@ function getFullscreen() {
 }
 
 /* Listening to mouse double click event.
-*  监听鼠标双击事件。 */
-video.on('dblclick', getFullscreen);
+*  PC端双击全屏，移动端双击暂停。 */
+video.on('dblclick', function() {
+    if (isMobile) {
+        playOrPause();
+    } else {
+        getFullscreen();
+    }
+});
 
+/* 移动端长按屏幕全屏。 */
+video.on('taphold', function() {
+    if (isMobile) {
+        getFullscreen();
+    }
+});
 
 /* 3. 控制栏 */
 var controlPanel = $('#control-panel');
@@ -107,8 +127,6 @@ function rebuildControlPanel() {
         'width': video.width()
     });
 }
-/* 初始化控制栏。 */
-rebuildControlPanel();
 
 /* 监听浏览器窗口大小改变时控制栏改变大小。 */
 $(window).on('resize', rebuildControlPanel);
@@ -131,34 +149,76 @@ $(document).on("msfullscreenchange", function () {
 var progressBar = $('#jag-progress-bar');
 var bufferBar = $('#jag-buffer-bar');
 
+function timeToString(time) {
+    var seconds = Math.floor(time) % 60;
+    seconds = (seconds < 10) ? '0' + seconds : String(seconds);
+    var minutes = String(Math.floor(time / 60) % 60);
+    minutes = (minutes < 10) ? '0' + minutes : String(minutes);
+    var hours = String(Math.floor(time / 3600));
+    hours = (hours < 10) ? '0' + hours : String(hours);
+    return hours + ':' + minutes + ':' + seconds;
+}
+
+var durationLabel = '';
+/* Get duration from loadedmettadata. */
+/* 加载完元数据后计算总时间。 */
+video.on('loadedmetadata', function() {
+    durationLabel = timeToString(video[0].duration);
+    if (durationLabel.split(':')[0] == '00') {
+        durationLabel = durationLabel.substr(3);
+    }
+    /* 如果小时数不为0，则显示全部3位。 */
+    if (durationLabel.length > 5) {
+        $('#time-label').text('00:00:00/' + durationLabel);
+    } else {
+        $('#time-label').text('00:00/' + durationLabel);
+    }
+    /* 加载完全部元数据后构建控制栏。 */
+    rebuildControlPanel();
+});
+
 /* 根据当前时间更新进度条，缓冲条和按钮。 */
 video.on('timeupdate', function() {
+    /* 1. 更新进度条和缓冲条。  */
     var maxDuration = video[0].duration;
     /* 获取当前时间和缓冲条。 */
     var currentPos = video[0].currentTime;
-    var currentBuffer = video[0].buffered.end(0);
-    /* 获取进度条和缓冲条百分比。 */
-    var perCurrent = 100 * currentPos / maxDuration;
-    var perBuffer = 100 * (currentBuffer - currentPos) / maxDuration;
-    /* 进度条长度为视频长度减去边缘长度。 */
-    var progressWidth = video.width() - 30;
-    /* 修改css中width属性改变进度条。 */
-    progressBar.css('width', perCurrent + '%');
-    /* 修改css中left属性改变进度按钮。 */
-    progressButton.css({
-        /* 按钮的左偏移量为7，根据当前时间更新按钮。 */
-        left: 7 + progressWidth * currentPos / maxDuration
-    });
+    /* 拖拽进度条按钮时不更新进度条。 */
+    if (!progressDragFlag) {
+        var currentBuffer = video[0].buffered.end(0);
+        /* 获取进度条和缓冲条百分比。 */
+        var perCurrent = 100 * currentPos / maxDuration;
+        var perBuffer = 100 * (currentBuffer - currentPos) / maxDuration;
+        perBuffer = (perBuffer < 0) ? 0 : perBuffer;
+        /* 进度条长度为视频长度减去边缘长度。 */
+        var progressWidth = video.width() - 30;
+        /* 修改css中width属性改变进度条。 */
+        progressBar.css('width', perCurrent + '%');
+        /* 修改css中left属性改变进度按钮。 */
+        progressButton.css({
+            /* 按钮的左偏移量为7，根据当前时间更新按钮。 */
+            left: 7 + progressWidth * currentPos / maxDuration
+        });
+    }
     /* 未完全缓冲时。 */
     if (currentBuffer < maxDuration) {
         bufferBar.css('width', perBuffer + '%');
     } else {
         bufferBar.css('width', (100 - perCurrent) + '%');
     }
+
+    /* 2. 更新时间标签。 */
+    /* 如果总时长超过1小时，则显示3位。 */
+    if (durationLabel.length > 5) {
+        $('#time-label').text(timeToString(currentPos) + '/' + durationLabel);
+    } else {
+        /* 否则只显示分钟和秒。 */
+        $('#time-label').text(timeToString(currentPos).substr(3) + '/' + durationLabel);
+    }
 });
 
-/* 进度条点击事件。 */
-$('.progress-bar-container').on('click', function(event) {
+/* 进度条点击事件(使用tap可避免同时触发进度条和进度条按钮事件)。 */
+$('.progress-bar-container').on('tap', function(event) {
     /* 点击事件的偏移量为相对文档的偏移量减去视频偏移量减去控制栏。 */
     var leftOffset = event.pageX - video.offset().left - 15;
     /* 获取控制栏总长度。 */
@@ -168,11 +228,38 @@ $('.progress-bar-container').on('click', function(event) {
 });
 
 /* 进度按钮拖动事件。 */
+var progressDragFlag = false;
 
+function updateProgressBar(offsetX) {
+    var leftOffset = offsetX - video.offset().left - 15;
+    progressBar.css('width', leftOffset);
+    progressButton.css('left', 7 + leftOffset);
+}
 
+progressButton.mousedown(function(event) {
+    progressDragFlag = true;
+    updateProgressBar(event.pageX);
+});
 
+/* 在鼠标移动过程中更新进度条。 */
+$(document).mousemove(function(event) {
+    if(progressDragFlag) {
+        updateProgressBar(event.pageX);
+    }
+});
 
-
+/* 鼠标抬起时，更新播放时间。 */
+$(document).mouseup(function(event) {
+    if (progressDragFlag) {
+        progressDragFlag = false;
+        updateProgressBar(event.pageX);
+        var leftOffset = event.pageX - video.offset().left - 15;
+        /* 获取控制栏总长度。 */
+        var progressWidth = video.width() - 30;
+        /* 点击坐标的左偏移量除以控制栏长度，和播放时间百分比相等。 */
+        video[0].currentTime = leftOffset / progressWidth * video[0].duration;
+    }
+});
 
 /* 在播放前调用此函数更新缓冲条。 */
 function startBuffer() {
@@ -203,9 +290,33 @@ var playbackList = $('.playback-list');
 playButton.on('click', playOrPause);
 
 volumeButton.on('click', function() {
-    video[0].muted = !video[0].muted;
+    if (video[0].muted) {
+        video[0].muted = false;
+        $('#volume-bar').css('width', video[0].volume * 60);
+    } else {
+        video[0].muted = true;
+        $('#volume-bar').css('width', 0);
+    }
 });
 
+/* 音量控制条。 */
+$('.volume-box').on('click', function(event) {
+    /* 点击事件的偏移量为相对文档的偏移量减去视频偏移量减去控制栏。 */
+    var leftOffset = event.pageX - video.offset().left - 93;
+    /* 音量条长度为60px。 */
+    var percentage = leftOffset / 60;
+    /* 判断是否在音量条区域外(方便点击)。 */
+    percentage = (percentage >= 1) ? 1 : percentage;
+    /* 静音状态不修改音量条位置。 */
+    if (!video[0].muted) {
+        /* 音量条当前位置。 */
+        $('#volume-bar').css('width', leftOffset / 60 * 100 + '%');
+    }
+    /* 修改音量大小。 */
+    video[0].volume = percentage;
+});
+
+/* 点击全屏按钮全屏。 */
 fullscreenButton.on('click', getFullscreen);
 
 playbackButton.on('click', function() {
@@ -233,8 +344,10 @@ $('.list-group-item').on('click', function() {
 var controlPanelTimer = 0;
 var onControlPanelFlag = false;
 video.on('mousemove', function() {
+    /* 每次在屏幕上移动时更新控制栏。 */
+    rebuildControlPanel();
     /* 如果鼠标在屏幕上移动，则显示控制条并重设计时器。 */
-    controlPanel.show();
+    controlPanel.css('display', 'block');
     controlPanelTimer = 4000;
 });
 
@@ -247,11 +360,22 @@ controlPanel.on('mouseout', function() {
     onControlPanelFlag = false;
 });
 
+/* 若鼠标在按钮上变为亮紫色。 */
+$('.jag-button').on('mouseover', function() {
+    $(this).css('color', 'fuchsia');
+});
+
+/* 鼠标离开按钮变回白色。 */
+$('.jag-button').on('mouseout', function() {
+    $(this).css('color', 'white');
+});
+
 /* 隐藏控制栏的函数。 */
 function controlPanelHide() {
     /* 若计时器已归零并且鼠标不在控制栏上，则隐藏控制栏。 */
     if (controlPanelTimer == 0 && !onControlPanelFlag) {
-        controlPanel.hide();
+        /* 需要设置为none，否则移动端会可以点击。 */
+        controlPanel.css('display', 'none');
     }
     /* 计时器每隔500ms更新一次。 */
     controlPanelTimer = (controlPanelTimer > 500) ? controlPanelTimer - 500 : 0;
@@ -264,23 +388,23 @@ controlPanelHide();
 video.on('pause', function() {
     /* 当视频暂停时，修改按钮样式。 */
     playButton.removeClass();
-    playButton.addClass('glyphicon glyphicon-play');
+    playButton.addClass('glyphicon glyphicon-play jag-button');
 });
 
 video.on('play', function() {
     /* 当视频开始时，修改按钮样式。 */
     playButton.removeClass();
-    playButton.addClass('glyphicon glyphicon-pause');
+    playButton.addClass('glyphicon glyphicon-pause jag-button');
 });
 
 video.on('volumechange', function() {
     /* 当音量变化时，修改音量键图标。 */
     if (video[0].muted) {
         volumeButton.removeClass();
-        volumeButton.addClass('glyphicon glyphicon-volume-off');
+        volumeButton.addClass('glyphicon glyphicon-volume-off jag-button');
     } else {
         volumeButton.removeClass();
-        volumeButton.addClass('glyphicon glyphicon-volume-up');
+        volumeButton.addClass('glyphicon glyphicon-volume-up jag-button');
     }
 });
 
@@ -297,29 +421,9 @@ video.contextmenu(function() {
 
 
 
-/* Get duration from loadedmettadata. */
-video.on('loadedmetadata', function() {
-    $('.duration').text(video[0].duration);
-});
 
 
 
-var timeDrag = false;   /* Drag status */
-$('.progressBar').mousedown(function(e) {
-    timeDrag = true;
-    updatebar(e.pageX);
-});
-$(document).mouseup(function(e) {
-    if(timeDrag) {
-        timeDrag = false;
-        updatebar(e.pageX);
-    }
-});
-$(document).mousemove(function(e) {
-    if(timeDrag) {
-        updatebar(e.pageX);
-    }
-});
 
 //update Progress Bar control
 var updatebar = function(x) {
@@ -342,10 +446,4 @@ var updatebar = function(x) {
 };
 
 
-//Volume control clicked
-$('.volumeBar').on('mousedown', function(e) {
-    var position = e.pageX - volume.offset().left;
-    var percentage = 100 * position / volume.width();
-    $('.volumeBar').css('width', percentage+'%');
-    video[0].volume = percentage / 100;
-});
+
